@@ -343,11 +343,28 @@ PV.legTip = (leg, mode) => {
   return '';
 };
 /* what to do / eat at a stop, taken from the place's highlights */
-PV.doWhat = (p) => {
-  const en = PV.lang === 'en';
-  const hl = ((en && p.highlights_en) || p.highlights || []).filter(h => h && !/^\d+\.\s/.test(h) && !/chưa xác minh|^món giá|^giá/i.test(h) && h.length < 70).slice(0, 2);
+// Món nên thử / điểm nên xem – đã làm sạch ghi chú nháp trong dữ liệu ("Chưa xác minh", "cần xác nhận…", "2. Phở Hoài", "Món Giá")
+PV.cleanHl = (p, max = 3) => {
+  const en = PV.lang === 'en', seen = new Set();
+  return ((en && p.highlights_en) || p.highlights || []).map(h => String(h || '')
+      .replace(/\s*chưa xác minh\s*/gi, ' ').split(/;|\s{3,}/)[0].replace(/\s+/g, ' ').trim())
+    .filter(h => h && h.length < 70 && !/^\d+\.\s/.test(h) && !/^món\s*giá$|^giá\b|cần (xác nhận|xác minh)/i.test(h))
+    .filter(h => { const k = h.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, max);
+};
+PV.doWhat = (p, max = 3) => {
+  const hl = PV.cleanHl(p, max);
   if (!hl.length) return '';
-  return (PV.foodType(p) ? PV.L('🍴 Nên thử: ','🍴 Try: ') : PV.L('👉 Đừng bỏ lỡ: ','👉 Don’t miss: ')) + hl.join(' · ');
+  return (PV.foodType(p) ? PV.L('🍴 Nên ăn: ','🍴 What to eat: ') : PV.L('👀 Nên xem: ','👀 What to see: ')) + hl.join(' · ');
+};
+// Link Google Maps của địa điểm (bỏ tham số theo dõi utm_…); không có thì tìm theo tên + địa chỉ
+PV.mapsLink = (p) => {
+  if (p.maps_url) { try { const u = new URL(p.maps_url); [...u.searchParams.keys()].filter(k => /^utm_/.test(k)).forEach(k => u.searchParams.delete(k)); return u.toString(); } catch(e) { return p.maps_url; } }
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ' ' + (p.address || 'TP.HCM'));
+};
+// Hàng link dưới mỗi điểm trong lịch trình: bản đồ, chỉ đường từ điểm trước, chi tiết, tìm hiểu thêm
+PV.stopLinks = (p, from, mode) => {
+  const e = PV.esc, a = (href, txt) => `<a href="${e(href)}" target="_blank" rel="noopener">${txt}</a>`;
+  return `<div class="stoplinks">${a(PV.mapsLink(p), PV.L('📍 Google Maps','📍 Google Maps'))}${from && p.coords ? a(PV.dirUrl(from, p.coords, mode), PV.L('🧭 Chỉ đường','🧭 Directions')) : ''}<button type="button" class="linkbtn" data-pid="${e(p.id)}">${PV.L('ℹ️ Chi tiết','ℹ️ Details')}</button>${p.source && /^https?:/.test(p.source) ? a(p.source, PV.L('📖 Tìm hiểu thêm','📖 Read more')) : ''}</div>`;
 };
 
 

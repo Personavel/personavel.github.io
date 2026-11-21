@@ -1753,3 +1753,11 @@ body.glass-dark .tilefail .muted,.tilefail .muted{color:#4A5B78!important;opacit
 .fnote .linkbtn{color:#1F6FB5;font-weight:600}
 body.glass-dark .fnote{background:rgba(255,255,255,.1);color:var(--ink)}
 body.glass-dark .fnote .linkbtn{color:#BFE0FF!important}
+
+/* Lịch trình: link dưới mỗi điểm */
+.stoplinks{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:13px}
+.stoplinks a,.stoplinks .linkbtn{color:#1F6FB5;font-weight:600;text-decoration:none;background:none;border:0;padding:0;font:inherit;cursor:pointer}
+.stoplinks a:hover,.stoplinks .linkbtn:hover{text-decoration:underline}
+.chatcard ol li,.tripmsg ol li{margin-bottom:8px}
+body.glass-dark .stoplinks a,body.glass-dark .stoplinks .linkbtn{color:#BFE0FF}
+.bubble .tripcard,.bubble .plist{white-space:normal}   /* thẻ trong khung chat không giữ xuống dòng của mã HTML */

@@ -255,7 +255,8 @@ PV.chatCore = (root) => {
     msgs.insertAdjacentHTML('beforeend', bubble(res)); bindCards(msgs); msgs.scrollTop=msgs.scrollHeight;
   }
   function bindCards(r){
-    $$('[data-pid]', r).forEach(el => el.onclick = () => { if (PV._mapRef && PV.focusPlace && location.hash.split('?')[0]==='#map') PV.focusPlace(el.dataset.pid); else PV.openPlace(el.dataset.pid); });
+    $$('[data-pid]', r).forEach(el => el.onclick = (e) => { const t = e.target.closest('a,[data-pid]'); if (t && t !== el) return;   // link / nút con trong thẻ tự xử lý
+      if (PV._mapRef && PV.focusPlace && location.hash.split('?')[0]==='#map') PV.focusPlace(el.dataset.pid); else PV.openPlace(el.dataset.pid); });
     $$('[data-usetrip]', r).forEach(b => b.onclick = () => { const c = state.chat[+b.dataset.usetrip]; if (!c||!c.trip) return; state.trip = JSON.parse(JSON.stringify(c.trip)); state.trip.stops.forEach(s=>s.by='ai'); PV.retime(state.trip); PV.save('trip'); PV.toast('Đã lưu lịch trình'); if (location.hash.split('?')[0]==='#map' && PV.refreshMapTrip) PV.refreshMapTrip(); else location.hash='#trip'; });
     $$('[data-adjust]', r).forEach(b => b.onclick = () => { ci.value='Mình muốn điều chỉnh: '; ci.focus(); });
     $$('[data-say2]', r).forEach(b => b.onclick = () => { const c=state.chat[+b.dataset.say2]; if (c) PV.speak(c.t.replace(/[*_#>]/g,''), b); });
@@ -266,9 +267,10 @@ PV.chatCore = (root) => {
     if (c.r==='me') return `<div class="msg me"><div class="bubble">${esc(c.t)}</div></div>`;
     const g = PV.GUIDES.find(x=>x.id===c.g) || PV.todayGuide();
     let extra = '';
-    if (c.places && c.places.length) extra += `<div class="plist" style="margin-top:8px">${c.places.map(PV.byId).filter(Boolean).map(PV.pitem).join('')}</div>`;
+    if (c.places && c.places.length) extra += `<div class="plist" style="margin-top:8px">${c.places.map(PV.byId).filter(Boolean).map(p => { const dw = PV.doWhat(p, 2);
+      return PV.pitem(p).replace(/<\/div><\/div>\s*$/, `${dw ? `<div class="small dowhat">${esc(dw)}</div>` : ''}${PV.stopLinks(p)}</div></div>`); }).join('')}</div>`;
     if (c.trip) extra += `<div class="tripcard"><b>🗺️ ${esc(c.trip.title)}</b><div class="tiny muted">Bắt đầu ${c.trip.start} · ${PV.MODES[c.trip.mode]?.name||''} · ~${PV.fmtKm(c.trip.km||0)} · ~${PV.fmtVnd(c.trip.cost||0)}/người</div>
-      <ol>${c.trip.stops.map(s=>{const p=PV.byId(s.id); return p?`<li><b>${s.arrive||''}</b> <span data-pid="${p.id}" style="cursor:pointer;text-decoration:underline dotted">${esc(p.name)}</span>${s.tag?` <span class="tag meal">${s.tag.startsWith('Ăn vặt')?'🍡':'🍽️'} ${esc(s.tag)}</span>`:''} <span class="tiny muted">(${s.stay||p.visit_min} phút${s.leg?' · đi '+s.leg.min+' phút':''})</span></li>`:'';}).join('')}</ol>
+      <ol>${c.trip.stops.map((s,i)=>{const p=PV.byId(s.id); if(!p) return ''; const prev=i?PV.byId(c.trip.stops[i-1].id):null, from=prev?prev.coords:(c.trip.origin&&c.trip.origin.c), dw=PV.doWhat(p); return `<li><b>${s.arrive||''}</b> <span data-pid="${p.id}" style="cursor:pointer;text-decoration:underline dotted">${esc(PV.L(p.name, p.name_en||p.name))}</span>${s.tag?` <span class="tag meal">${s.tag.startsWith('Ăn vặt')?'🍡':'🍽️'} ${esc(PV.L(s.tag, s.tag.startsWith('Ăn vặt')?'Snack':s.tag==='Ăn sáng'?'Breakfast':s.tag==='Ăn trưa'?'Lunch':s.tag==='Ăn tối'?'Dinner':s.tag))}</span>`:''} <span class="tiny muted">(${s.stay||p.visit_min} ${PV.L('phút','min')}${s.leg?PV.L(' · đi ',' · ')+s.leg.min+PV.L(' phút',' min travel'):''})</span>${dw?`<div class="small dowhat">${esc(dw)}</div>`:''}${PV.stopLinks(p, from, c.trip.mode)}</li>`;}).join('')}</ol>
       <div class="row"><button class="btn sm" data-usetrip="${idx}">Lưu lịch trình</button><button class="btn ghost sm" data-adjust="${idx}">Điều chỉnh lịch trình</button></div></div>`;
     if (c.ask && !c.ask.done){ const to = PV.GUIDES.find(x=>x.id===c.ask.g); if (to) extra += `<div class="askg"><button class="btn sm" type="button" data-askg="${to.id}" data-askq="${idx}">${PV.robot(to,{wave:false}).replace('<svg','<svg style="width:22px;height:22px;flex:0 0 22px" aria-hidden="true"')} ${PV.L('Hỏi','Ask')} ${esc(to.name)}</button></div>`; }
     if (c.sources && c.sources.length) extra += `<div class="src">📚 Nguồn tham khảo: ${c.sources.map(s=>s.url?`<a href="${esc(PV.safeUrl(s.url))}" target="_blank" rel="noopener">${esc(s.name)}</a>`:esc(s.name)).join(' · ')}</div>`;
@@ -336,10 +338,10 @@ PV.answer = async (text) => {
 };
 PV.systemPrompt = () => {
   const g = PV.todayGuide(); const pr = state.profile?.prefs || {};
-  const cat = D.places.filter(p=>p.coords).map(p => [p.id, p.name, p.cats.join('/'), p.address.split(',').slice(0,2).join(','), 'giá:'+PV.priceText(p.price_level), (p.hours||[])[0]||'giờ: chưa rõ', p.michelin?'Michelin':'', (p.highlights||[]).slice(0,3).join('; '), p.geo==='approx'?'vị trí gần đúng':''].filter(Boolean).join(' | ')).join('\n');
+  const cat = D.places.filter(p=>p.coords).map(p => [p.id, p.name, p.cats.join('/'), p.address.split(',').slice(0,2).join(','), 'giá:'+PV.priceText(p.price_level), (p.hours||[])[0]||'giờ: chưa rõ', p.michelin?'Michelin':'', (PV.foodType(p)?'nên ăn: ':'nên xem: ')+PV.cleanHl(p,3).join('; '), 'link: '+PV.mapsLink(p), p.geo==='approx'?'vị trí gần đúng':''].filter(Boolean).join(' | ')).join('\n');
   const st = D.streets.map(s=>`Đường ${s.name} (${s.wards}): ${s.story}`).join('\n');
   return `Bạn là ${g.name}, hướng dẫn viên du lịch ảo của Personavel – một robot mặc áo dài, đội nón lá, giọng ${g.voice}. Bạn giúp du khách khám phá TP.HCM (trọng tâm phường Sài Gòn, Tân Định, Bến Thành, Cầu Ông Lãnh, Xuân Hòa, Nhiêu Lộc, Bàn Cờ – tức Quận 1, Quận 3 cũ). Luôn trả lời bằng ${PV.lang==='en'?'TIẾNG ANH (English) – người dùng chọn giao diện tiếng Anh':'tiếng Việt'}, thân thiện, ngắn gọn (tối đa ~150 chữ).
-QUY TẮC: Chỉ dùng thông tin trong KHO DỮ LIỆU bên dưới cho giá vé, giờ mở cửa, địa chỉ. Không bịa thông tin lịch sử; nếu không chắc, nói rõ "thông tin này chưa được xác minh". Với địa điểm có "vị trí gần đúng", nhắc người dùng kiểm tra lại. Trước khi lập lịch trình, nếu chưa biết thời gian, ngân sách hoặc khu vực, hãy hỏi lại 1–2 câu ngắn (không hỏi trùng điều đã biết trong hồ sơ). Khi kể chuyện lịch sử/địa danh, thêm nguồn tham khảo.
+QUY TẮC: Chỉ dùng thông tin trong KHO DỮ LIỆU bên dưới cho giá vé, giờ mở cửa, địa chỉ. Khi gợi ý địa điểm hoặc lên lịch trình, với MỖI điểm hãy nêu ngắn "nên xem" (điểm tham quan) hoặc "nên ăn" (quán ăn) lấy từ kho dữ liệu, kèm đúng đường link Google Maps của điểm đó trong kho – không tự tạo link khác. Không bịa thông tin lịch sử; nếu không chắc, nói rõ "thông tin này chưa được xác minh". Với địa điểm có "vị trí gần đúng", nhắc người dùng kiểm tra lại. Trước khi lập lịch trình, nếu chưa biết thời gian, ngân sách hoặc khu vực, hãy hỏi lại 1–2 câu ngắn (không hỏi trùng điều đã biết trong hồ sơ). Khi kể chuyện lịch sử/địa danh, thêm nguồn tham khảo.
 HỒ SƠ NGƯỜI DÙNG: tên ${state.profile?.name||'chưa rõ'}; phong cách ${state.profile?.persona?.name||'chưa phân tích'}; sở thích ${JSON.stringify(pr)}.
 LỊCH TRÌNH HIỆN TẠI: ${state.trip.stops.map(s=>PV.byId(s.id)?.name).filter(Boolean).join(' → ') || 'trống'}.
 KHO DỮ LIỆU ĐỊA ĐIỂM (id | tên | loại | địa chỉ | giá | giờ | ...):
@@ -453,10 +455,20 @@ PV.localAnswer = (text) => {
   if (pl && !has('lich trinh','ke hoach','itinerary','plan')) {
     const hours = L((pl.hours||[])[0], (pl.hours_en||[])[0] || PV.tr((pl.hours||[])[0]));
     const price = L((pl.price||[])[0], (pl.price_en||[])[0] || PV.tr((pl.price||[])[0])) || PV.tr(PV.priceText(pl.price_level));
-    const hl = L(pl.highlights, pl.highlights_en || pl.highlights) || [];
-    const t = `${nm(pl)}: ${L(pl.desc, pl.desc_en || PV.tr(pl.desc))}\n📍 ${pl.address}\n🕒 ${hours||L('Giờ mở cửa chưa xác minh','Opening hours not verified')}\n🎟️ ${price}${hl.length?'\n✨ '+hl.slice(0,3).join(', '):''}${pl.geo==='approx'?L('\n(Lưu ý: vị trí trên bản đồ là gần đúng, bạn nên kiểm tra lại.)','\n(Note: the map position is approximate, please double-check.)'):''}`;
+    const hl = PV.cleanHl(pl, 3);
+    const t = `${nm(pl)}: ${L(pl.desc, pl.desc_en || PV.tr(pl.desc))}\n📍 ${pl.address}\n🕒 ${hours||L('Giờ mở cửa chưa xác minh','Opening hours not verified')}\n🎟️ ${price}${hl.length?'\n'+(PV.foodType(pl)?L('🍴 Nên ăn: ','🍴 What to eat: '):L('👀 Nên xem: ','👀 What to see: '))+hl.join(', '):''}${pl.geo==='approx'?L('\n(Lưu ý: vị trí trên bản đồ là gần đúng, bạn nên kiểm tra lại.)','\n(Note: the map position is approximate, please double-check.)'):''}`;
     return {t, places:[pl.id], sources:[pl.source?{name:pl.source_name,url:pl.source}:{name:PV.tr(pl.source_name||'Khảo sát của nhóm')}]};
   }
+  // tóm tắt nên ăn gì ở từng bữa, nên xem gì ở các điểm chính (link nằm trong thẻ lịch trình bên dưới)
+  const tripGuide = (trip) => {
+    const meals = trip.stops.filter(x => x.tag).map(x => { const p = PV.byId(x.id), hl = PV.cleanHl(p, 2);
+      const tag = L(x.tag, x.tag.startsWith('Ăn vặt') ? 'Snack' : x.tag === 'Ăn sáng' ? 'Breakfast' : x.tag === 'Ăn trưa' ? 'Lunch' : 'Dinner');
+      return `• ${x.arrive} ${tag} – ${nm(p)}${hl.length ? ': ' + hl.join(', ') : ''}`; });
+    const sights = trip.stops.filter(x => !x.tag).map(x => { const p = PV.byId(x.id), hl = PV.cleanHl(p, 1); return hl.length ? `• ${nm(p)}: ${hl[0]}` : ''; }).filter(Boolean).slice(0, 4);
+    return (meals.length ? L('\n\n🍴 Nên ăn gì:\n', '\n\n🍴 What to eat:\n') + meals.join('\n') : '')
+      + (sights.length ? L('\n\n👀 Nên xem gì:\n', '\n\n👀 What to see:\n') + sights.join('\n') : '')
+      + L('\n\nBấm 📍 dưới mỗi điểm để mở Google Maps.', '\n\nTap 📍 under each stop to open it in Google Maps.');
+  };
   // itinerary (kể cả "ngày 2" sau khi đã có lịch trình)
   const nextDayQ = state.chat.some(c=>c.trip) && has('ngay 2','ngay thu 2','ngay thu hai','ngay 3','ngay thu 3','ngay tiep','ngay tiep theo','hom sau','day 2','day two','day 3','next day','second day');
   if (nextDayQ || has('lich trinh','ke hoach','len lich','hanh trinh','di dau','1 ngay','mot ngay','nua ngay','buoi sang','buoi toi','buoi chieu','toi nay','itinerary','plan','trip','schedule','one day','1 day','half day','tonight','evening','morning','afternoon','where to go')) {
@@ -491,7 +503,7 @@ PV.localAnswer = (text) => {
       : dayNo ? L(`\nNgày ${dayNo} không lặp lại điểm nào của những ngày trước.`, `\nDay ${dayNo} does not repeat any place from earlier days.`) : '';
     const per = state.profile?.persona;
     return {t: L(`Mình đã lên lịch trình ${trip.stops.length} điểm (từ ${trip.start} đến khoảng ${trip.stops.length ? trip.stops[trip.stops.length-1].leave : trip.start}), di chuyển bằng ${PV.MODES[trip.mode].name.toLowerCase()}. Các điểm được chọn theo ${per?'phong cách “'+per.name+'”':'những địa điểm nổi bật'}, ưu tiên gần nhau và xếp bữa ăn vào khung trưa/tối.${!state.profile?.prefs?'\nGợi ý: hãy làm bài phân tích phong cách (trong Trang cá nhân) để mình đề xuất chính xác hơn.':''}\nBạn có thể lưu, hoặc nói “bỏ [tên địa điểm]”, “thêm quán ăn”, “đi bộ thôi”… để mình điều chỉnh.`,
-      `I've planned a ${trip.stops.length}-stop itinerary (${trip.start} to about ${trip.stops.length ? trip.stops[trip.stops.length-1].leave : trip.start}), travelling by ${PV.tr(PV.MODES[trip.mode].name).toLowerCase()}. Stops are chosen for ${per?'your “'+PV.tr(per.name)+'” style':'their highlights'}, kept close together, with meals at lunch/dinner time.${!state.profile?.prefs?'\nTip: take the style analysis (in My profile) for better suggestions.':''}\nYou can save it, or say “remove [place]”, “add food”, “walk only”… and I'll adjust it.`) + dayNote, trip};
+      `I've planned a ${trip.stops.length}-stop itinerary (${trip.start} to about ${trip.stops.length ? trip.stops[trip.stops.length-1].leave : trip.start}), travelling by ${PV.tr(PV.MODES[trip.mode].name).toLowerCase()}. Stops are chosen for ${per?'your “'+PV.tr(per.name)+'” style':'their highlights'}, kept close together, with meals at lunch/dinner time.${!state.profile?.prefs?'\nTip: take the style analysis (in My profile) for better suggestions.':''}\nYou can save it, or say “remove [place]”, “add food”, “walk only”… and I'll adjust it.`) + dayNote + tripGuide(trip), trip};
   }
   // category suggestions
   const near = has('gan day','gan toi','quanh day','gan nhat','near','nearby','around');

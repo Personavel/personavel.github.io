@@ -162,7 +162,7 @@ PV.pitem = (p) => {
     <div style="min-width:0"><b>${esc(p.name)}</b>${p.michelin?' <span class="tag mich">Michelin</span>':''}${state.visited[p.id]?' <span class="tag ok">Đã ghé</span>':''}
     <div class="small muted">${esc(p.kind)} · ${PV.priceText(p.price_level)}${d}</div></div></div>`;
 };
-PV.bindItems = (root) => $$('[data-pid]', root).forEach(el => el.onclick = () => PV.openPlace(el.dataset.pid));
+PV.bindItems = (root) => $$('[data-pid]', root).forEach(el => el.onclick = (e) => { const t = e.target.closest('a,[data-pid]'); if (t && t !== el) return; PV.openPlace(el.dataset.pid); });   // link / nút con bên trong thẻ tự xử lý
 
 /* ---------- PLACE DRAWER ---------- */
 PV.openPlace = (id, opt={}) => {
@@ -495,6 +495,8 @@ PV.views.trip = (m) => {
     <div class="stopcard"><div class="n ${s.by==='me'?'mine':''}">${i+1}</div><div style="flex:1;min-width:0"><b data-pid="${p.id}" style="cursor:pointer">${esc(p.name)}</b>
       <div class="small muted">${s.arrive||''} – ${s.leave||''} · ${esc(p.kind)} · ${PV.priceText(p.price_level)}</div>
       ${dw?`<div class="small dowhat">${esc(dw)}</div>`:''}
+      ${p.price && p.price[0] ? `<div class="tiny muted">💵 ${esc(String(p.price[0]).replace(/\s*\(tham khảo\)/i,'').slice(0,90))}</div>` : ''}
+      ${PV.stopLinks(p, null, t.mode)}
       ${s.tag?`<span class="tag meal">${s.tag.startsWith('Ăn vặt')?'🍡':'🍽️'} ${esc(s.tag)}</span>`:''}
       ${(()=>{ const a=PV.toMin(s.arrive||'0:0'); return PV.hourRanges(p) && !PV.openFor(p, a, 20) ? '<span class="tag warn">Có thể ngoài giờ mở cửa</span>' : ''; })()}
       <span class="tag">${s.by==='me'?'Bạn tự thêm':'AI đề xuất'}</span>
