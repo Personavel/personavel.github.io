@@ -68,7 +68,7 @@ PV.runQuiz = (container, done) => {
 
 /* ---------- PROFILE ---------- */
 PV.views.profile = (m) => {
-  const p = state.profile || {name:'Bạn'}; const pr = p.prefs; const per = p.persona;
+  const p = state.profile || {name:'Bạn'}; const pr = p.prefs; const per = p.persona || (pr && PV.persona(pr));   // có sở thích nhưng thiếu persona (dữ liệu cũ / đồng bộ từ máy khác) → tính lại, không làm vỡ trang
   const w = PV.weights(); const maxW = Math.max(...Object.values(w));
   const label = (k,v) => { const Q=PV.QUIZ.find(q=>q.k===k); if(!Q||v==null) return '—'; const arr=[].concat(v); return arr.map(x=> x==='other' && pr[k+'_other'] ? pr[k+'_other'] : PV.tr((Q.o.find(o=>o[0]===x)||[,,x])[2])).join(', '); };
   m.innerHTML = `<h1 class="title">Trang cá nhân</h1><p class="sub">Personavel ghi nhớ bạn là ai, bạn đã khám phá những gì và phong cách du lịch của bạn thay đổi ra sao.</p>
@@ -163,7 +163,7 @@ PV.logoutModal = () => {
 /* ---------- chatbot greets a new user after the analysis ---------- */
 PV.greetNew = () => {
   const old = document.getElementById('greetpop'); if (old) old.remove();
-  const g = PV.todayGuide(); const p = state.profile || {}; const per = p.persona;
+  const g = PV.todayGuide(); const p = state.profile || {}; const per = p.persona || (p.prefs && PV.persona(p.prefs));
   const rec = PV.recommend(3);
   const pop = document.createElement('div'); pop.className = 'greetpop'; pop.id = 'greetpop'; pop.setAttribute('role','dialog');
   pop.innerHTML = `<button class="gp-x" aria-label="Đóng">✕</button>
@@ -501,7 +501,7 @@ PV.localAnswer = (text) => {
     else if (days >= 2) trip.title = L('Ngày 1 – ', 'Day 1 – ') + trip.title;
     const dayNote = days >= 2 && !nextDay ? L(`\nĐây là Ngày 1 trong ${days} ngày. Gõ “ngày 2” để mình xếp tiếp các điểm khác, không trùng với hôm nay.`, `\nThis is Day 1 of ${days}. Type “day 2” and I'll plan different places for the next day.`)
       : dayNo ? L(`\nNgày ${dayNo} không lặp lại điểm nào của những ngày trước.`, `\nDay ${dayNo} does not repeat any place from earlier days.`) : '';
-    const per = state.profile?.persona;
+    const per = state.profile?.persona || (state.profile?.prefs && PV.persona(state.profile.prefs));
     return {t: L(`Mình đã lên lịch trình ${trip.stops.length} điểm (từ ${trip.start} đến khoảng ${trip.stops.length ? trip.stops[trip.stops.length-1].leave : trip.start}), di chuyển bằng ${PV.MODES[trip.mode].name.toLowerCase()}. Các điểm được chọn theo ${per?'phong cách “'+per.name+'”':'những địa điểm nổi bật'}, ưu tiên gần nhau và xếp bữa ăn vào khung trưa/tối.${!state.profile?.prefs?'\nGợi ý: hãy làm bài phân tích phong cách (trong Trang cá nhân) để mình đề xuất chính xác hơn.':''}\nBạn có thể lưu, hoặc nói “bỏ [tên địa điểm]”, “thêm quán ăn”, “đi bộ thôi”… để mình điều chỉnh.`,
       `I've planned a ${trip.stops.length}-stop itinerary (${trip.start} to about ${trip.stops.length ? trip.stops[trip.stops.length-1].leave : trip.start}), travelling by ${PV.tr(PV.MODES[trip.mode].name).toLowerCase()}. Stops are chosen for ${per?'your “'+PV.tr(per.name)+'” style':'their highlights'}, kept close together, with meals at lunch/dinner time.${!state.profile?.prefs?'\nTip: take the style analysis (in My profile) for better suggestions.':''}\nYou can save it, or say “remove [place]”, “add food”, “walk only”… and I'll adjust it.`) + dayNote + tripGuide(trip), trip};
   }

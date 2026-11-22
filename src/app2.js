@@ -282,7 +282,7 @@ PV.views.map = (m) => {
     <div style="position:relative;min-height:420px"><div id="map"></div>
       <div class="maplegend" id="maplegend">
         <div class="seg"><button data-mode="rec" class="${onlyRec?'on':''}">✨ Gợi ý cho bạn</button><button data-mode="all" class="${onlyRec?'':'on'}">Tất cả</button></div>
-        <div class="lg">${Object.entries(CATS).filter(([k])=>D.places.some(p=>PV.mainCat(p)===k)).map(([k,c])=>`<span><i style="background:${c.color}"></i>${c.name.split(' –')[0]}</span>`).join('')}<span><i class="tripdot"></i>Lịch trình</span></div>
+        <div class="lg">${Object.entries(CATS).filter(([k])=>D.places.some(p=>PV.mainCat(p)===k)).map(([k,c])=>`<span><i style="background:${c.color}"></i>${PV.tr(c.name).split(' –')[0]}</span>`).join('')}<span><i class="tripdot"></i>Lịch trình</span></div>
       </div>
       <div class="mapctl" id="mapctl" style="position:absolute;right:12px;top:12px;z-index:500;display:flex;flex-direction:column;gap:8px">
         <button class="btn sm mapctl-btn" id="mapCtlBtn" type="button" aria-expanded="false" aria-controls="mapctl">☰ ${PV.L('Tùy chọn','Options')}</button>
@@ -361,7 +361,7 @@ function drawPlaces(){
   const sorted = list.slice().sort((a,b)=> PV.score(b)-PV.score(a));
   const lim = innerWidth <= 820 && !PV._listAll ? 10 : 40;
   $('#plist').innerHTML = (sorted.slice(0,lim).map(PV.pitem).join('') || '<div class="empty small">Không có địa điểm phù hợp bộ lọc</div>')
-    + (sorted.length > lim && lim < 40 ? `<button class="btn ghost sm morebtn" id="plmore">Xem thêm ${Math.min(40, sorted.length) - lim} địa điểm</button>` : '');
+    + (sorted.length > lim && lim < 40 ? `<button class="btn ghost sm morebtn" id="plmore">${PV.L('Xem thêm ' + (Math.min(40, sorted.length) - lim) + ' địa điểm', 'Show ' + (Math.min(40, sorted.length) - lim) + ' more places')}</button>` : '');
   const pm = $('#plmore'); if (pm) pm.onclick = () => { PV._listAll = true; drawPlaces(); };
   const all = D.places.filter(p => p.coords).length;
   $('#cnt').textContent = list.length < all ? `${list.length}/${all} ${PV.L('địa điểm','places')}` : `${list.length} ${PV.L('địa điểm','places')}`;
