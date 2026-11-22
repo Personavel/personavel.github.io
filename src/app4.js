@@ -196,6 +196,13 @@ PV.langGate = (next) => {
     setTimeout(() => { ov.remove(); next(); }, 220);
   });
 };
+PV.splashDue = () => {
+  let upd = false; try { upd = sessionStorage.getItem('pv_upd') === '1'; sessionStorage.removeItem('pv_upd'); } catch(e){}
+  if (upd) return false;                                                                   // tự tải lại sau khi cập nhật phiên bản
+  if (state.settings.splash === 'off') return false;
+  if (/[?&](code|error|error_description|type)=/.test(location.search + location.hash)) return false;   // quay về từ Google / email
+  return !/^#(reset-password|account)\b/.test(location.hash);
+};
 PV.init = () => {
   const boot = document.getElementById('boot'); if (boot) requestAnimationFrame(() => { boot.classList.add('out'); setTimeout(() => boot.remove(), 300); });   // static hero from index.html
   if (state.settings.apiKey || state.settings.model){ delete state.settings.apiKey; delete state.settings.model; PV.save('settings'); }   // never keep API keys in the browser
@@ -208,8 +215,9 @@ PV.init = () => {
     if (!state.settings.langChosen && state.settings.theme && state.settings.theme.id !== 'default'){ state.settings.theme = {id:'default'}; PV.save('settings'); PV.applyTheme && PV.applyTheme({id:'default'}); }
     PV.langGate(() => PV.welcome());
   }
-  else if (state.settings.splash !== 'off' && /^(#home)?$/.test(location.hash.split('?')[0]) && !/[?&](code|error|error_description)=/.test(location.search)) PV.welcome(false);
-  // the intro (welcome back) plays each time the site is opened on Home; deep links (#map…), returns from sign-in and Settings → off go straight to the page
+  else if (PV.splashDue()) PV.welcome(false);
+  // màn chào hiện MỖI LẦN vào lại web, ở bất kỳ trang nào (trình duyệt hay mở lại đúng trang đang xem dở như #chat, #trip);
+  // bỏ qua khi: vừa đăng nhập / đặt lại mật khẩu, web tự tải lại để cập nhật bản mới, hoặc Cài đặt → tắt màn mở đầu
   if ('speechSynthesis' in window) speechSynthesis.getVoices();
 };
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', PV.init); else PV.init();
